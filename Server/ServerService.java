@@ -7,11 +7,10 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class ServerService {
     Selector selector;
@@ -20,7 +19,7 @@ public class ServerService {
     // 연결된 클라이언트를 저장하는 List<Client> 타입의 connections 필드 선언
     // 스레드에 안전한 Vector로 초기화
     ClusterConnectionPool cluster = ClusterConnectionPool.getInstance();
-    private ServerService(){};
+    private ServerService(){}
     private static ServerService serverService;
     public static ServerService getInstance(){
         if(serverService == null){
@@ -45,12 +44,31 @@ public class ServerService {
             }
             return;
         }
-        Thread thread = new Thread() {
+        class AcceptThread extends Thread{
+            SelectionKey s = null;
+            public void setAccept(SelectionKey s){this.s = s;}
+            @Override
+            public void run(){
+                while (true){
+                    if (s != null && s.isAcceptable()){
+                       accept(s);
+                       s = null;
+                    }
+                    else Thread.yield();
+                }
+            }
+        }
+        AcceptThread acceptThread = new AcceptThread();
+        acceptThread.start();
+        ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        //Runnable task = new Runnable() {
+        Thread t = new Thread(){
             @Override
             public void run() {
                 while (true) {
                     try {
                         int keyCount = selector.select();
+
                         if (keyCount == 0) {
                             continue;
                         }
@@ -58,15 +76,21 @@ public class ServerService {
                         Iterator<SelectionKey> iterator = selectedKeys.iterator();
                         while (iterator.hasNext()) {
                             SelectionKey selectionKey = iterator.next();
-                            if (selectionKey.isAcceptable()) {
-                                accept(selectionKey);
-                            } else if (selectionKey.isReadable()) {
-                                Client client = (Client) selectionKey.attachment();
-                                client.receive(selectionKey);
-                            }
                             iterator.remove();
+                            if (selectionKey.isAcceptable()) acceptThread.setAccept(selectionKey);
+                            else if (selectionKey.isReadable()) {
+                                Future future = executorService.submit(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Client client = (Client) selectionKey.attachment();
+                                        client.receive();
+                                    }
+                                });
+                                future.get();
+                            }
                         }
                     } catch (Exception e) {
+                        System.out.println(e.getMessage());
                         if (serverSocketChannel.isOpen()) {
                             stopServer();
                         }
@@ -75,7 +99,8 @@ public class ServerService {
                 }
             }
         };
-        thread.start();
+        //executorService.submit(task);
+        t.start();
     }
 
     // 서버 종료 시 호출되는 메소드
@@ -126,7 +151,7 @@ public class ServerService {
             selectionKey.attach(this);
         }
 
-        void receive(SelectionKey selectionKey) {
+        synchronized void receive() {
             try {
                 ByteBuffer byteBuffer = ByteBuffer.allocate(100);
 

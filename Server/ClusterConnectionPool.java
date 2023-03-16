@@ -24,11 +24,11 @@ public class ClusterConnectionPool {
     protected int getData(){
         int total = 0; // 이것도 쓰레드 위험? ..
         for (ComponentConnectionPool c : components){
-            System.out.printf("thread pool id : %d, count : %d\n",c.componentId,c.count.get());
+            System.out.printf("component pool id : %d, count : %d\n",c.componentId,c.count.get());
             total += c.count.get();
         }
         for (int i = 0; i < remainId.size(); i++) {
-            System.out.printf("thread pool id : %d, count : %d\n", remainId.get(i), remainCount.get(i));
+            System.out.printf("component pool id : %d, count : %d\n", remainId.get(i), remainCount.get(i));
             total += remainCount.get(i);
         }
         return total;

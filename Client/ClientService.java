@@ -43,26 +43,24 @@ public class ClientService {
         }
     }
 
-    protected void getConnection(int m) {
-        Thread thread = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    for (int i=0; i<m; i++) {
-                        Charset charset = Charset.forName("UTF-8");
-                        ByteBuffer byteBuffer = charset.encode("getConnection");
-                        socketChannel.write(byteBuffer);
-                        count.set(count.get() + 1);
-                        System.out.println("getConnection");
-                        Thread.sleep(100); // 한 채널에 너무 빠른 입력 방지 (같은 클라이언트가 동시에 여러 요청하는건 말이 안됨) callback , sync 처리 필요?
-                    }
-                } catch (Exception e) {
-                    System.out.println("getConnection Failed");
-                    stopClient();
-                }
+    protected int getConnection(int m) {
+        int result = 0;
+        try {
+            for (int i=0; i<m; i++) {
+                Charset charset = Charset.forName("UTF-8");
+                ByteBuffer byteBuffer = charset.encode("getConnection");
+                socketChannel.write(byteBuffer);
+                count.set(count.get() + 1);
+                System.out.println("getConnection"+Thread.currentThread().getName());
+                Thread.sleep(5); // 한 채널에 너무 빠른 입력 방지 (같은 클라이언트가 동시에 여러 요청하는건 말이 안됨) callback , sync 처리 필요?
+                result += 1;
             }
-        };
-        thread.start();
+        } catch (Exception e) {
+            System.out.println("getConnection Failed");
+            System.out.println(e.getMessage());
+            stopClient();
+        }
+        return result;
     }
 
     protected int getCount() {
