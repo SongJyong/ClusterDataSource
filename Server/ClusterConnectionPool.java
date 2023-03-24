@@ -40,7 +40,7 @@ public class ClusterConnectionPool {
             c.makeComponent(5, dbname);
             components.add(c);
             componentId.set(id + 1);
-            Thread.sleep(1); // 동기 처리, 콜백 필요
+            //Thread.sleep(1); // 동기 처리, 콜백 필요
         }
     }
 
@@ -48,17 +48,23 @@ public class ClusterConnectionPool {
     protected void getConnect(){
         int len = components.size();
         int ind = index.get()%len;
-        components.get(ind).getConnect();
         index.set(ind+1);
+        try {
+            synchronized (components.get(ind)) {
+                components.get(ind).getConnect();
+            }
+        } catch (IndexOutOfBoundsException e){ // lock의 앞선 대기자 중 remove가 있는 경우, 참조를 못하게 됨.
+            getConnect();
+        }
     }
-    protected void remove(int n) throws InterruptedException {
+    protected void remove(int n){
         int len = components.size()-1;
         for (int i=len; i>Math.max(len-n,0); i--) {  // 현재 cluster pool 보다 더 많이 제거 명령할 시 따로 처리
-            ComponentConnectionPool c = components.remove(i);
-            remainId.add(c.componentId);
-            remainCount.add(c.count.get());
-            Thread.sleep(1); // 동기 처리, 콜백 필요
-            c = null; // 이 코드 필요 없나? 마지막 루프 때도 local 변수라 안남나?
+            synchronized (components.get(i)) {
+                ComponentConnectionPool c = components.remove(i);
+                remainId.add(c.componentId);
+                remainCount.add(c.count.get());
+            }
         }
     }
 }

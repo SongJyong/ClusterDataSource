@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Clients {
     public int count = 0;
     List<ClientService> clients = new Vector<ClientService>();
+    public synchronized void setCount(int c){ this.count += c; }
     public void start(int n, int m) throws InterruptedException, ExecutionException {
         this.count = 0;
         ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -17,43 +18,28 @@ public class Clients {
                 public void run() {
                     ClientService c = new ClientService();
                     clients.add(c);
-                    System.out.println(Thread.currentThread().getName());
                 }
             });
-            future.get();
+            future.get(); // 제대로 waiting 안됨 (ex 클라 1개 일때, 초기화 안된 상태로 넘어감)
         }
 
         AtomicInteger index = new AtomicInteger(clients.size() - n);
-        class Count{
-            int value = 0;
-            synchronized void addValue(int value){
-                this.value += value;
-            }
-        }
-        class Task implements Runnable{
-            Count count;
-            Task(Count count){
-                this.count = count;
-            }
-            @Override
-            public void run(){
-                ClientService temp = clients.get(index.get());
-                count.addValue(temp.getConnection(m));
-                index.set(index.get()+1);
-            }
-        }
-        Count count = new Count();
-        for (int j = 0; j < n; j++){
-            Task t = new Task(count);
-            Future<Count> f = executorService.submit(t, count);
-            count = f.get();
-            this.count = count.value;
+        for (int j = 0; j < n; j++) {
+            ClientService temp = clients.get(index.get());
+            executorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    setCount(temp.getConnection(m));
+                }
+            });
+            index.set(index.get() + 1);
         }
     }
 
     public int getData(){
         int total = 0;
         for (ClientService cli : clients){
+            System.out.printf("client %d \n",cli.getCount());
             total += cli.getCount();
         }
         return total;

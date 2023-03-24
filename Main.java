@@ -8,35 +8,26 @@ public class Main {
 
         System.out.println("Hello world!");
 
-        test(50,10);
-
-
+        long start = System.nanoTime();
+        test(start,10,100);
     }
-    public static void test(int n, int m) throws InterruptedException {
+    public static void test(long start, int n, int m) throws InterruptedException {
         SingletonServer s = SingletonServer.getInstance();
         s.startServer();
-        Thread.sleep(1000); // callback , sync 처리 필요
         s.start(10);
+        Thread.sleep(1000); // callback , sync 처리 필요
         Clients c = new Clients();
         Thread t = new Thread() {
             @Override
             public void run() {
                 try {
                     c.start(n, m);
-                    while(true){
-                        if (c.count == n*m)break;
-                        else Thread.yield();
-                    }
                     s.remove(5);
                     s.add(5);
-                    c.start(n, m);
+                    //c.start(n, m);
                     s.add(5);
                     s.remove(1);
                     s.add(1);
-                    while(true){
-                        if (c.count == n*m)break;
-                        else Thread.yield();
-                    }
                 } catch (InterruptedException | ExecutionException e) {
                 }
             }
@@ -46,10 +37,21 @@ public class Main {
             @Override
             public void run() {
                 try {
-                    t.join();
-                    System.out.printf("client request  : %d \n", c.getData());
-                    System.out.printf("server response : %d \n", s.getData());
-                } catch(InterruptedException e){
+                    while (true) {
+                        if (c.count == n*m) {
+                            Thread.sleep(10000);
+                            System.out.printf("client request  : %d \n", c.getData());
+                            System.out.printf("server response : %d \n", s.getData());
+                            System.out.printf("%d \n", s.serverService.businessLogic.workQueue.size());
+                            System.out.printf("%d \n", s.serverService.businessLogic.requestData.size());
+                            System.out.printf("%d \n", s.serverService.businessLogic.index.get());
+                            long end = System.nanoTime();
+                            System.out.printf("running time : %d (micro seconds)\n", (end-start)/1000);
+                            break;
+                        }
+                        else Thread.yield();
+                    }
+                } catch(Exception e){
                 }
             }
         };

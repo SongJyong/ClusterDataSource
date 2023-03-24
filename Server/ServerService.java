@@ -7,10 +7,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import Protocol.*;
 
 public class ServerService {
     Selector selector;
@@ -18,7 +21,7 @@ public class ServerService {
     List<Client> connections = new Vector<Client>();
     // 연결된 클라이언트를 저장하는 List<Client> 타입의 connections 필드 선언
     // 스레드에 안전한 Vector로 초기화
-    ClusterConnectionPool cluster = ClusterConnectionPool.getInstance();
+    public BusinessLogic businessLogic = new BusinessLogic();
     private ServerService(){}
     private static ServerService serverService;
     public static ServerService getInstance(){
@@ -32,6 +35,7 @@ public class ServerService {
 
     // 서버 시작 시 호출되는 메소드
     public void startServer() {
+        Request.key = new AtomicInteger(); // requestId 고유값 초기화
         try {
             selector = Selector.open(); // selector 생성
             serverSocketChannel = ServerSocketChannel.open(); // ServerSocketChannel 생성
@@ -61,7 +65,6 @@ public class ServerService {
         AcceptThread acceptThread = new AcceptThread();
         acceptThread.start();
         ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        //Runnable task = new Runnable() {
         Thread t = new Thread(){
             @Override
             public void run() {
@@ -73,21 +76,21 @@ public class ServerService {
                             continue;
                         }
                         Set<SelectionKey> selectedKeys = selector.selectedKeys();
+
                         Iterator<SelectionKey> iterator = selectedKeys.iterator();
                         while (iterator.hasNext()) {
                             SelectionKey selectionKey = iterator.next();
-                            iterator.remove();
                             if (selectionKey.isAcceptable()) acceptThread.setAccept(selectionKey);
                             else if (selectionKey.isReadable()) {
-                                Future future = executorService.submit(new Runnable() {
+                                executorService.submit(new Runnable() {
                                     @Override
                                     public void run() {
                                         Client client = (Client) selectionKey.attachment();
-                                        client.receive();
-                                    }
-                                });
-                                future.get();
+                                        client.receive(selectionKey);
+                                        }
+                                    });
                             }
+                            iterator.remove();
                         }
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
@@ -99,7 +102,6 @@ public class ServerService {
                 }
             }
         };
-        //executorService.submit(task);
         t.start();
     }
 
@@ -127,11 +129,10 @@ public class ServerService {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel socketChannel = serverSocketChannel.accept();
-            String message = "[연결 수락: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
-            System.out.println(message);
-
             Client client = new Client(socketChannel);
             connections.add(client);
+            String message = "[연결 수락: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
+            System.out.println(message);
         } catch (Exception e) {
             if (serverSocketChannel.isOpen()) {
                 stopServer();
@@ -143,7 +144,6 @@ public class ServerService {
     // Client를 내부 클래스로 선언
     class Client {
         SocketChannel socketChannel;
-
         Client(SocketChannel socketChannel) throws IOException {
             this.socketChannel = socketChannel;
             socketChannel.configureBlocking(false);
@@ -151,33 +151,36 @@ public class ServerService {
             selectionKey.attach(this);
         }
 
-        synchronized void receive() {
+        void receive(SelectionKey selectionKey) {
             try {
-                ByteBuffer byteBuffer = ByteBuffer.allocate(100);
-
-                // 클라이언트가 비정상 종료를 했을 경우 IOException 발생
+                ByteBuffer byteBuffer = ByteBuffer.allocate(90);
+                // 클라이언트가 비정상 종료를 했을 경우 catch IOException 발생
                 int byteCount = socketChannel.read(byteBuffer);
                 // 클라이언트가 정상적으로 SocketChannel의 close()를 호출했을 경우 => read() 메소드는 -1을 리턴하고 IOException을 강제로 발생
                 if (byteCount == -1) {
                     throw new IOException();
                 }
-
-                String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
-                System.out.println(message);
-                cluster.getConnect();
-                // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
+                else if (byteCount > 0) {
+                    byteBuffer.flip();
+                    businessLogic.addRequest(byteBuffer);
+                    businessLogic.work();
+                    String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
+                    System.out.println(message);
+                    // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
+                }
 
             } catch (Exception e) {
                 try {
-                    connections.remove(this);
+                    //connections.remove(this);
                     String message = "[클라이언트 통신 안됨: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
                     System.out.println(message);
                     // "[클라이언트 통신 안됨: 클라이언트 IP: 작업 스레드 이름]" 으로 구성된 문자열 생성
-                    socketChannel.close();
+                    //socketChannel.close();
                 } catch (IOException e2) {
 
                 }
             }
         }
+
     }
 }

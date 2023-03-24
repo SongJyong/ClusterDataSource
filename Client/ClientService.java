@@ -1,10 +1,15 @@
 package Client;
 
+import Protocol.*;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientService {
@@ -46,17 +51,30 @@ public class ClientService {
     protected int getConnection(int m) {
         int result = 0;
         try {
+            ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
             for (int i=0; i<m; i++) {
-                Charset charset = Charset.forName("UTF-8");
-                ByteBuffer byteBuffer = charset.encode("getConnection");
-                socketChannel.write(byteBuffer);
                 count.set(count.get() + 1);
-                System.out.println("getConnection"+Thread.currentThread().getName());
-                Thread.sleep(5); // 한 채널에 너무 빠른 입력 방지 (같은 클라이언트가 동시에 여러 요청하는건 말이 안됨) callback , sync 처리 필요?
-                result += 1;
+                Future f = executorService.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try{
+                        Request request = new Request("getConnection");
+                        ByteBuffer byteBuffer = Utilities.convertObjectToBytes(request);
+                        socketChannel.write(byteBuffer);
+                        byteBuffer.clear();
+                        Thread.sleep(10);
+                        //System.out.println("getConnection "+Thread.currentThread().getName());
+                        } catch (Exception e) {
+                            System.out.println(e.getMessage());
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
+                f.get();
+                result +=1;
             }
         } catch (Exception e) {
-            System.out.println("getConnection Failed");
+            System.out.println("getConnection Failed "+Thread.currentThread().getName());
             System.out.println(e.getMessage());
             stopClient();
         }
