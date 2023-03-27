@@ -28,6 +28,6 @@ public class SingletonServer {
         this.serverService.businessLogic.cluster.remove(n);
     }
     public int getData(){
-        return this.serverService.businessLogic.cluster.getData();
+        return this.serverService.businessLogic.cluster.logicalConnection.getData();
     }
 }

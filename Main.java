@@ -22,9 +22,10 @@ public class Main {
             public void run() {
                 try {
                     c.start(n, m);
+                    Thread.sleep(1000);
                     s.remove(5);
                     s.add(5);
-                    //c.start(n, m);
+                    c.start(n, m);
                     s.add(5);
                     s.remove(1);
                     s.add(1);
@@ -38,7 +39,7 @@ public class Main {
             public void run() {
                 try {
                     while (true) {
-                        if (c.count == n*m) {
+                        if (c.count == 2*n*m) {
                             Thread.sleep(10000);
                             System.out.printf("client request  : %d \n", c.getData());
                             System.out.printf("server response : %d \n", s.getData());

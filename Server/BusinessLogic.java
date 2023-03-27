@@ -17,6 +17,7 @@ public class BusinessLogic {
     public Queue<Integer> workQueue = new ConcurrentLinkedQueue<>();
     public AtomicInteger index = new AtomicInteger();
     ClusterConnectionPool cluster = ClusterConnectionPool.getInstance();
+    ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     public synchronized void addRequest(ByteBuffer byteBuffer){
         requestData.add(byteBuffer);
         workQueue.offer(index.get());
@@ -24,7 +25,7 @@ public class BusinessLogic {
     }
 
     public void work(){
-        ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        //ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         executorService.submit(new Runnable() {
             @Override
             public void run() {

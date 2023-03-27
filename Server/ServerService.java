@@ -165,7 +165,7 @@ public class ServerService {
                     businessLogic.addRequest(byteBuffer);
                     businessLogic.work();
                     String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
-                    System.out.println(message);
+                    //System.out.println(message);
                     // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
                 }
 

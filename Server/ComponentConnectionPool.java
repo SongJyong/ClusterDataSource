@@ -13,7 +13,6 @@ public class ComponentConnectionPool {
             DatabaseDummy d = new DatabaseDummy();
             d.connectionDB(dbname);
             connections.add(d);
-            //Thread.sleep(1);
         }
     }
     protected void getConnect(){

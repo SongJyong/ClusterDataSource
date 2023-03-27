@@ -10,7 +10,7 @@ public class Clients {
     List<ClientService> clients = new Vector<ClientService>();
     public synchronized void setCount(int c){ this.count += c; }
     public void start(int n, int m) throws InterruptedException, ExecutionException {
-        this.count = 0;
+        //this.count = 0;
         ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         for (int i = 0; i < n; i++){
             Future future = executorService.submit(new Runnable() {
