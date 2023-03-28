@@ -103,6 +103,19 @@ public class ServerService {
             }
         };
         t.start();
+        Thread failOver = new Thread(){
+            @Override
+            public void run() {
+                while (true) {
+                    int log = businessLogic.cluster.failOver();
+                    if (log == -1) Thread.yield();
+                    else{
+                        System.out.printf("connection pool id : %d failover completed \n", log);
+                    }
+                }
+            }
+        };
+        failOver.start();
     }
 
     // 서버 종료 시 호출되는 메소드

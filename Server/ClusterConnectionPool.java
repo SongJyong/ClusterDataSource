@@ -43,9 +43,15 @@ public class ClusterConnectionPool {
         try {
             synchronized (logicalConnection.getIndex(ind)) {
                 Integer mapIndex = logicalConnection.getIndex(ind);
-                logicalConnection.setCount(mapIndex);
+                //logicalConnection.setCount(mapIndex);
                 synchronized (components.get(mapIndex)) {
-                    components.get(mapIndex).getConnect();
+                    if (!components.get(mapIndex).getConnect()){
+                        logicalConnection.failIndex.add(ind);
+                        getConnect();
+                    }
+                    else{
+                        logicalConnection.setCount(mapIndex);
+                    }
                 }
             }
         } catch (IndexOutOfBoundsException e){ // lock의 앞선 대기자 중 remove가 있는 경우, 참조를 못하게 됨.
@@ -59,5 +65,22 @@ public class ClusterConnectionPool {
                 logicalConnection.remove(i);
             }
         }
+    }
+
+    protected void setFailedMark() throws InterruptedException {
+        components.get(logicalConnection.getIndex(0)).setFailedMark();
+    }
+
+    protected int failOver() {
+        if (logicalConnection.failIndex.size() > 0){
+            for (int i : logicalConnection.failIndex){
+                int j = logicalConnection.getIndex(i);
+                if (components.get(j).getConnect()){
+                    logicalConnection.failIndex.remove(i);
+                    return j;
+                }
+            }
+        }
+        return -1;
     }
 }

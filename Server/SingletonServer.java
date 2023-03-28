@@ -30,4 +30,8 @@ public class SingletonServer {
     public int getData(){
         return this.serverService.businessLogic.cluster.logicalConnection.getData();
     }
+
+    public void setFailedMark() throws InterruptedException {
+        this.serverService.businessLogic.cluster.setFailedMark();
+    }
 }
