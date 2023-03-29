@@ -29,7 +29,9 @@ public class Clients {
             executorService.submit(new Runnable() {
                 @Override
                 public void run() {
-                    setCount(temp.getConnection(m));
+                    temp.requestCount = m;
+                    temp.ready = true;
+                    setCount(temp.getConnection());
                 }
             });
             index.set(index.get() + 1);

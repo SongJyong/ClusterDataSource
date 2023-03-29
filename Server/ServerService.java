@@ -11,14 +11,16 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import Protocol.*;
 
 public class ServerService {
     Selector selector;
     ServerSocketChannel serverSocketChannel; // 클라이언트 연결을 수락하는 ServerSocketChannel 필드 선언
-    List<Client> connections = new Vector<Client>();
+    Map<Integer, Client> connections = new Hashtable<>();
+    AtomicInteger clientId = new AtomicInteger();
+    ByteBuffer response = Charset.forName("UTF-8").encode("response");
+
     // 연결된 클라이언트를 저장하는 List<Client> 타입의 connections 필드 선언
     // 스레드에 안전한 Vector로 초기화
     public BusinessLogic businessLogic = new BusinessLogic();
@@ -85,8 +87,8 @@ public class ServerService {
                                 executorService.submit(new Runnable() {
                                     @Override
                                     public void run() {
-                                        Client client = (Client) selectionKey.attachment();
-                                        client.receive(selectionKey);
+                                        int cid = (int) selectionKey.attachment();
+                                        connections.get(cid).receive(selectionKey);
                                         }
                                     });
                             }
@@ -121,9 +123,9 @@ public class ServerService {
     // 서버 종료 시 호출되는 메소드
     void stopServer() {
         try {
-            Iterator<Client> iterator = connections.iterator();
+            Iterator<Map.Entry<Integer,Client>> iterator = connections.entrySet().iterator();
             while (iterator.hasNext()) {
-                Client client = iterator.next();
+                Client client = iterator.next().getValue();
                 client.socketChannel.close();
                 iterator.remove();
             }
@@ -142,8 +144,9 @@ public class ServerService {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel socketChannel = serverSocketChannel.accept();
-            Client client = new Client(socketChannel);
-            connections.add(client);
+            Client client = new Client(clientId.get(), socketChannel);
+            connections.put(clientId.get(),client);
+            clientId.set(clientId.get()+1);
             String message = "[연결 수락: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
             System.out.println(message);
         } catch (Exception e) {
@@ -156,12 +159,14 @@ public class ServerService {
     // 연결된 Client를 표현 (데이터 통신 코드를 포함한다.)
     // Client를 내부 클래스로 선언
     class Client {
+        int clientId;
         SocketChannel socketChannel;
-        Client(SocketChannel socketChannel) throws IOException {
+        Client(int id, SocketChannel socketChannel) throws IOException {
             this.socketChannel = socketChannel;
+            this.clientId = id;
             socketChannel.configureBlocking(false);
             SelectionKey selectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
-            selectionKey.attach(this);
+            selectionKey.attach(this.clientId);
         }
 
         void receive(SelectionKey selectionKey) {
@@ -173,11 +178,13 @@ public class ServerService {
                 if (byteCount == -1) {
                     throw new IOException();
                 }
+                //else if (byteCount == 0) System.out.println("####");
                 else if (byteCount > 0) {
                     byteBuffer.flip();
                     businessLogic.addRequest(byteBuffer);
                     businessLogic.work();
                     String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
+                    socketChannel.write(response);
                     //System.out.println(message);
                     // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
                 }

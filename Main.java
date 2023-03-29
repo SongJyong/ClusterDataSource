@@ -9,6 +9,6 @@ public class Main {
         singletonServer.startServer();
         Clients clients = new Clients();
         long start = System.nanoTime();
-        TestCaseTwo.test(singletonServer,clients,10,1000,start);
+        TestCaseOne.test(singletonServer,clients,10,100,start);
     }
 }
