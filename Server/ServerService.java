@@ -67,6 +67,7 @@ public class ServerService {
                             iterator.remove();
                             if (selectionKey.isAcceptable()) accept(selectionKey);
                             else if (selectionKey.isReadable()) {
+                                selectionKey.interestOps(0);
                                 executorService.submit(new Runnable() {
                                     @Override
                                     public void run() {
@@ -159,8 +160,10 @@ public class ServerService {
                     System.out.printf("client %d closed",clientId);
                     throw new IOException();
                 }
-                //else if (byteCount == 0) System.out.println("####");
+                else if (byteCount == 0) System.out.println("####");
                 else if (byteCount > 0) {
+                    selectionKey.interestOps(SelectionKey.OP_READ);
+                    selector.wakeup();
                     businessLogic.addRequest(byteBuffer);
                     businessLogic.work();
                     String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
