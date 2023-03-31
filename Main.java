@@ -1,14 +1,52 @@
-import Client.Clients;
 import Server.SingletonServer;
-
-import Test.*;
+import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
         SingletonServer singletonServer = SingletonServer.getInstance();
         singletonServer.startServer();
-        Clients clients = new Clients();
-        long start = System.nanoTime();
-        TestCaseOne.test(singletonServer,clients,10,100,start);
+        singletonServer.start(20);
+
+        Scanner scanner = new Scanner(System.in);
+        Thread t = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    String s = scanner.nextLine();
+                    if (!s.isEmpty()) {
+                        if (s.equals("a")){
+                            try {
+                                singletonServer.remove(10);
+                                singletonServer.add(15);
+                            } catch (InterruptedException e) {
+                                System.out.println("Interrupted Error");
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        if (s.equals("g")) {
+                            System.out.printf("server total : %d \n", singletonServer.getData());
+                        }
+                        String[] spl = s.split(" ");
+                        try {
+                            if (spl[0].equals("add")) {
+                                int n = Integer.parseInt(spl[1]);
+                                singletonServer.add(n);
+                            } else if (spl[0].equals("remove")) {
+                                int n = Integer.parseInt(spl[1]);
+                                singletonServer.remove(n);
+                            }
+                        } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                            System.out.println("Wrong Input Error");
+                            throw new RuntimeException(e);
+                        } catch (InterruptedException e) {
+                            System.out.println("Interrupted Error");
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }
+        };
+        t.start();
+
     }
 }

@@ -11,7 +11,7 @@ public class SingletonServer {
             }
         }
         return singletonServer;
-    } // double-checked locking , singleton 보장 (multi-thread 환경)
+    } // double-checked locking , singleton 보장 (multi-thread 환경) , 추후 lazy holder 등 다른 방식으로 변경 필요
 
     public void startServer(){
         serverService = ServerService.getInstance();
@@ -28,7 +28,7 @@ public class SingletonServer {
         this.serverService.businessLogic.cluster.remove(n);
     }
     public int getData(){
-        return this.serverService.businessLogic.cluster.logicalConnection.getData();
+        return this.serverService.businessLogic.cluster.componentScheduler.getData();
     }
 
     public void setFailedMark() throws InterruptedException {

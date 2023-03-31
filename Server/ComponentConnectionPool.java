@@ -2,6 +2,7 @@ package Server;
 
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ComponentConnectionPool {
@@ -9,16 +10,25 @@ public class ComponentConnectionPool {
     AtomicInteger count = new AtomicInteger();
     boolean failedMark = false;
     int componentId;
+    Semaphore semaphore;
+    protected void acquireAll() throws InterruptedException {
+        semaphore.acquire(connections.size());
+    }
+    protected void releaseAll(){
+        semaphore.release(connections.size());
+    }
     protected void makeComponent(int num, String dbname) throws InterruptedException {
         for (int i=0;i<num;i++){
             DatabaseDummy d = new DatabaseDummy();
-            d.connectionDB(dbname);
+            d.physcalConnect(dbname);
             connections.add(d);
         }
+        semaphore = new Semaphore(num);
     }
     protected boolean getConnect(){
         if (failedMark) return false;
         count.set(count.get()+1);
+        //get logical connection from connections pool.
         return true;
     }
 

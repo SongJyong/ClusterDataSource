@@ -19,6 +19,7 @@ public class BusinessLogic {
     ClusterConnectionPool cluster = ClusterConnectionPool.getInstance();
     ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     public synchronized void addRequest(ByteBuffer byteBuffer){
+        byteBuffer.flip();
         requestData.add(byteBuffer);
         workQueue.offer(index.get());
         index.set(index.get()+1);

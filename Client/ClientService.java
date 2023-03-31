@@ -21,15 +21,12 @@ public class ClientService {
     Selector selector;
     SocketChannel socketChannel; // 클라이언트 통신을 위해 Socket 필드 선언
     AtomicInteger count = new AtomicInteger();
-    boolean ready = true;
-    int requestCount = 0;
-
     public ClientService(){
         this.startClient();
     }
     // 연결 시작 코드
     private void startClient() {
-        // 작업 스레드 생성 => connect(), receive() 에서 블로킹이 일어나기 때문
+        // 작업 스레드 생성 => connect(), receive() 에서 블로킹이 일어남
         try {
             selector = Selector.open();
             socketChannel = SocketChannel.open(); // 통신용 블로킹 SocketChannel 생성
@@ -58,12 +55,11 @@ public class ClientService {
                             SelectionKey selectionKey = iterator.next();
                             iterator.remove();
                             if (selectionKey.isReadable()) {
-                                ready = true;
+                                //receive response
                             }
                             else if (selectionKey.isConnectable()) {
                                 socketChannel.finishConnect();
                                 selectionKey.interestOps(SelectionKey.OP_READ);
-
                             }
                         }
                     } catch (Exception e) {
@@ -85,44 +81,37 @@ public class ClientService {
             if (socketChannel != null && socketChannel.isOpen()) {
                 socketChannel.close(); // socketChannel 필드가 null이 아니고, 현재 닫혀있지 않을 경우 SocketChannel을 닫는다
             }
-        } catch (IOException e) {
-        }
+        } catch (IOException e) {}
     }
 
-    protected int getConnection() {
+    protected int getConnection(int m) {
         ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         int result = 0;
-        while (requestCount > 0) {
-            if (ready) {
-                try {
-                    count.set(count.get() + 1);
-                    Future f = executorService.submit(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                Request request = new Request("getConnection");
-                                ByteBuffer byteBuffer = Utilities.convertObjectToBytes(request);
-                                socketChannel.write(byteBuffer);
-                                byteBuffer.clear();
-                                //System.out.println("getConnection "+Thread.currentThread().getName());
-                            } catch (Exception e) {
-                                System.out.println(e.getMessage());
-                                throw new RuntimeException(e);
-                            }
+        try {
+            for (int i=0; i<m; i++) {
+                count.set(count.get() + 1);
+                Future f = executorService.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Request request = new Request("getConnection");
+                            ByteBuffer byteBuffer = Utilities.convertObjectToBytes(request);
+                            socketChannel.write(byteBuffer);
+                            byteBuffer.clear();
+                            //System.out.printf("getConnection "+Thread.currentThread().getName() + " %d\n");
+                        } catch (Exception e) {
+                            System.out.println(e.getMessage());
+                            throw new RuntimeException(e);
                         }
-                    });
-                    requestCount -= 1;
-                    ready = false;
-                    result += 1;
-                    f.get();
-                } catch (Exception e) {
-                    System.out.println("getConnection Failed " + Thread.currentThread().getName());
-                    System.out.println(e.getMessage());
-                    stopClient();
-                    break;
-                }
+                    }
+                });
+                result += 1;
+                f.get();
             }
-            else Thread.yield();
+        } catch (Exception e) {
+            System.out.println("getConnection Failed "+Thread.currentThread().getName());
+            System.out.println(e.getMessage());
+            stopClient();
         }
         return result;
     }
