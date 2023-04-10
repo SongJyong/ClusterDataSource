@@ -17,14 +17,22 @@ public class Main {
                         if (s.equals("a")){
                             try {
                                 singletonServer.remove(10);
-                                singletonServer.add(15);
+                                singletonServer.add(10);
                             } catch (InterruptedException e) {
-                                System.out.println("Interrupted Error");
+                                System.out.println("Input thread be interrupted");
                                 throw new RuntimeException(e);
                             }
                         }
-                        if (s.equals("g")) {
+                        else if (s.equals("g")) {
                             System.out.printf("server total : %d \n", singletonServer.getData());
+                        }
+                        else if (s.equals("f")) {
+                            try {
+                                singletonServer.setFailedMark();
+                            } catch (InterruptedException e) {
+                                System.out.println("Input thread be interrupted");
+                                throw new RuntimeException(e);
+                            }
                         }
                         String[] spl = s.split(" ");
                         try {
@@ -39,7 +47,7 @@ public class Main {
                             System.out.println("Wrong Input Error");
                             throw new RuntimeException(e);
                         } catch (InterruptedException e) {
-                            System.out.println("Interrupted Error");
+                            System.out.println("Input thread be interrupted");
                             throw new RuntimeException(e);
                         }
                     }
