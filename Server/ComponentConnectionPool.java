@@ -7,16 +7,13 @@ import java.util.concurrent.Semaphore;
 
 public class ComponentConnectionPool {
     Queue<PhysicalConnectionDummy> connections; // 한 컴포넌트 내에 존재하는 physical connection Queue (사실상 pool)
-    boolean failedMark = false;
-    boolean removedMark = false;
+    boolean failedMark = false; // 고장난 상황을 표현하기 위해 임의로 추가.
     int componentId;
     Semaphore semaphore;
     protected void acquireAll() throws InterruptedException { semaphore.acquire(connections.size()); }// pool 사이즈 만큼 입장권 발급
     protected void releaseAll(){ semaphore.release(connections.size()); }
-    protected void setRemovedMark(){ this.removedMark = true; } // remove 선정된 component 에 marking
-    protected boolean isRemoved(){ return this.removedMark; } // marking 확인
     protected void makeComponent(int num, String dbUrl) throws InterruptedException {
-        connections = new LinkedBlockingQueue<>(num);
+        connections = new LinkedBlockingQueue<>(num); // size num 고정, 자료구조 선택
         for (int i=0;i<num;i++){
             PhysicalConnectionDummy d = new PhysicalConnectionDummy();
             d.getConnect(dbUrl);
@@ -27,7 +24,7 @@ public class ComponentConnectionPool {
     //이 메서드는 항상 앞에 semaphore.acquire() 필요
     //입장권 받고 써야함. (로직으로 제한되어 있진 않음)
     protected LogicalConnection getConnect(){
-        if (failedMark || removedMark) return null; // getConnect 실패
+        if (failedMark) return null; // getConnect 실패
         try {
             LogicalConnection logicalConnection = new LogicalConnection(connections.poll(), this);
             return logicalConnection;

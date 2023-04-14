@@ -3,7 +3,7 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        SingletonServer singletonServer = SingletonServer.getInstance();
+        SingletonServer singletonServer = new SingletonServer();
         singletonServer.startServer();
         singletonServer.start(20);
 

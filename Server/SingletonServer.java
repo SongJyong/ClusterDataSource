@@ -1,19 +1,8 @@
 package Server;
 
 public class SingletonServer {
-    private SingletonServer(){};
-    private static SingletonServer singletonServer;
     private ServerService serverService; // 소켓 통신 다루는 서비스
     private ClusterConnectionPool cluster = ClusterConnectionPool.getInstance(); // 데이터리소스 다루는 클러스터
-    public static SingletonServer getInstance(){
-        if(singletonServer == null){
-            synchronized (SingletonServer.class){
-                if(singletonServer == null) singletonServer = new SingletonServer();
-            }
-        }
-        return singletonServer;
-    } // double-checked locking , singleton 보장,
-    // 추후 lazy holder 등 다른 방식으로 변경 필요 (현재 서버는 초기화 단계에서 무조건 하나이지만 명시적인 이유로 사용)
 
     public void startServer(){
         serverService = new ServerService();

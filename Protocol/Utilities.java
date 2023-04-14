@@ -17,13 +17,14 @@ public class Utilities {
     }
 
     public static Object convertBytesToObject(ByteBuffer byteBuffer){
-        byte[] bytes = new byte[byteBuffer.limit()];
+        byte[] bytes = new byte[byteBuffer.getInt()];
         byteBuffer.get(bytes);
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
             return ois.readObject();
         } catch (IOException e) {
-            System.out.println("IOEXCEPTION");
-            throw new RuntimeException(e);
+            //System.out.println("IOEXCEPTION");
+            byteBuffer.position(0);
+            return convertBytesToObject(byteBuffer);
         } catch (ClassNotFoundException e) {
             System.out.println("CLASSNOTFOUNDEXCEPTION");
             throw new RuntimeException(e);
