@@ -7,7 +7,7 @@ public interface Scheduler {
         System.out.println("wrong method use : you should look scheduler policy");
         return -1;
     }
-    default int getScheduleAddress(Integer clientId, int requestId, RoundRobinScheduler rrScheduler){
+    default int getScheduleAddress(int requestId){
         System.out.println("wrong method use : you should look scheduler policy");
         return -1;
     }

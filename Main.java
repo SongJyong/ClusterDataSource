@@ -5,7 +5,7 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         SingletonServer singletonServer = new SingletonServer();
         singletonServer.startServer();
-        singletonServer.start(20);
+        singletonServer.start(10);
 
         Scanner scanner = new Scanner(System.in);
         Thread t = new Thread() {
@@ -16,8 +16,8 @@ public class Main {
                     if (!s.isEmpty()) {
                         if (s.equals("a")){
                             try {
-                                singletonServer.remove(10);
-                                singletonServer.add(10);
+                                singletonServer.remove(5);
+                                singletonServer.add(5);
                             } catch (InterruptedException e) {
                                 System.out.println("Input thread be interrupted");
                                 throw new RuntimeException(e);
@@ -39,7 +39,7 @@ public class Main {
                             if (spl[0].equals("add")) {
                                 int n = Integer.parseInt(spl[1]);
                                 singletonServer.add(n);
-                            } else if (spl[0].equals("remove")) {
+                            } else if (spl[0].equals("r")) {
                                 int n = Integer.parseInt(spl[1]);
                                 singletonServer.remove(n);
                             }

@@ -99,11 +99,11 @@ public class ServerService {
                             Thread.sleep(5000); // 특정 시간(현재는 5초) 간격으로
                             // failedList에 있는 component pool 들이 살아있는 지 확인하는 함수(failOver) 호출
                         } catch (InterruptedException e) {
-                            System.out.println("failover thread interrupted");
+                            System.out.println("failback thread interrupted");
                         }
                     }
                     else{
-                        System.out.printf("connection pool id : %d failover completed \n", log);
+                        System.out.printf("connection pool id : %d fix completed \n", log);
                     }
                 }
             }
@@ -173,15 +173,15 @@ public class ServerService {
                 else if (byteCount == 0) System.out.println("#### read test ####");
                 // 쓸모없는 read 반복이 실행되는 지 확인하는 프린트 디버깅
                 else if (byteCount > 0) {
+                    selectionKey.interestOps(SelectionKey.OP_READ); //read로 request하나 확인되면 바로 다시 read 받을 준비
+                    selector.wakeup(); // blocking 되어 있는 select() 함수 깨워줌. (사실상 non-block select() 재호출 느낌)
                     businessLogic.addRequest(byteBuffer, clientId); //request data 저장
                     businessLogic.work(); //work thread 에서 따로 저장된 request 응답 처리
                     String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
-                    System.out.println(message);
+                    //System.out.println(message);
                     // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
                     byteBuffer.clear();
                     //bufferPool.releaseBuffer(byteBuffer); // 사용한 버퍼 다시 풀로 되돌려줌
-                    selectionKey.interestOps(SelectionKey.OP_READ); //read로 request하나 확인되면 바로 다시 read 받을 준비
-                    selector.wakeup(); // blocking 되어 있는 select() 함수 깨워줌. (사실상 non-block select() 재호출 느낌)
                 }
 
             } catch (Exception e) {
