@@ -1,13 +1,28 @@
 package Server;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ComponentStatus {
-    private boolean failedMark = false;
-    private boolean removedMark = false;
+    private int componentId;
+    private AtomicBoolean primaryMark = new AtomicBoolean(false);
+    private AtomicBoolean failedMark = new AtomicBoolean(false);
+    private AtomicBoolean removedMark = new AtomicBoolean(false);
     private int referenceCount = 0;
-    public void updateFailMark(){ failedMark ^= true; }
-    public void updateRemoveMark(){ removedMark ^= true; }
+
+    public void updatePrimaryMark(){ primaryMark.getAndSet(!primaryMark.get()); }
+    public void updateFailMark(){ failedMark.getAndSet(!failedMark.get()); }
+    public void updateRemoveMark(){ removedMark.getAndSet(!removedMark.get()); }
+
+    public boolean isPrimary(){ return primaryMark.get(); }
+    public boolean isFailed(){ return failedMark.get(); }
+    public boolean isRemoved() { return removedMark.get(); }
+    public boolean isPrimaryAvailable() { return (isPrimary() && !isRemoved() && !isFailed()); }
+    public boolean isSubAvailable() { return (!isPrimary() && !isRemoved() && !isFailed()); }
+
     public synchronized void increaseCount(){ referenceCount += 1; }
-    public boolean isFailed(){ return this.failedMark; }
-    public boolean isRemoved() { return this.removedMark; }
-    public int getCount(){ return this.referenceCount; }
+    public int getCount(){ return referenceCount; }
+    public int getComponentId() { return componentId; }
+    public ComponentStatus(int id){
+        this.componentId = id;
+    }
 }

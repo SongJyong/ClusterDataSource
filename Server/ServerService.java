@@ -19,7 +19,7 @@ public class ServerService {
     AtomicInteger clientAtomicId = new AtomicInteger(); // 서버에서 클라이언트 세션 마다 부여하는 고유 번호
     //BufferPool bufferPool = new BufferPool(); // request 받는 buffer 를 미리 만들어 pool 형태로 재사용
     BusinessLogic businessLogic = new BusinessLogic(); // 추후 work thread 실행하는 객체
-    // ExecutorService executorService = Executors.newFixedThreadPool(50);
+    ExecutorService executorService = Executors.newFixedThreadPool(100);
     // 서버 시작 시 호출하는 메소드
     public void startServer() {
         //bufferPool.addBufferPool(10000,150); // request protocol, bytebuffer size == 150 (고정)
@@ -56,6 +56,7 @@ public class ServerService {
                             else if (selectionKey.isReadable()) {
                                 selectionKey.interestOps(0); // 선택된 셀렉션키의 잘못된 read 반복을 막기 위해 같은 키가
                                 // 바로 다시 선택되지 않게 돌려버림 (현재 selector 싱글 스레드, 동기화 필요 x)
+                                /*
                                 Thread readThread = new Thread(){
                                     @Override
                                     public void run() {
@@ -65,7 +66,7 @@ public class ServerService {
                                     }
                                 };
                                 readThread.start();
-                                 /*
+                                */
                                 executorService.submit(new Runnable() {
                                     @Override
                                     public void run() {
@@ -73,8 +74,6 @@ public class ServerService {
                                         connections.get(cid).receive(selectionKey); // id값 이용해 hashtable 참조해
                                     }
                                 });
-                                  */
-                                // 추후 쓰레드풀 커스텀해서 변경 필요, 현재는 쓰레드 터질 위험 있지만 테스트를 위한 성능 때문에 놔둠.
                             }
                         }
                     } catch (Exception e) {
@@ -188,6 +187,7 @@ public class ServerService {
                 try {
                     String message = "[클라이언트 통신 안됨: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
                     System.out.println(message);
+                    e.printStackTrace();
                 } catch (IOException e2) {
 
                 }

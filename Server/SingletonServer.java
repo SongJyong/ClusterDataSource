@@ -15,15 +15,22 @@ public class SingletonServer {
     public void add(int n) throws InterruptedException {
         this.start(n);
     }
-    public void remove(int n) throws InterruptedException {
-        this.cluster.remove(n); // component pool 나중에 추가된 순서부터 차례대로 n개 remove
+    public void inactive(int address) {
+        this.cluster.inactive(address); // 해당 address에 맞는 compoonent inactive
+    }
+    public void remove(int address){
+        this.cluster.remove(address);
     }
     public int getData(){
         return this.cluster.getCount();
     } // 서버에서 응답된 요청 count 출력 및 토탈 return
 
-    public void setFailedMark() throws InterruptedException {
-        this.cluster.setFailedMark();
+    public void setFailedMark(int address) throws InterruptedException {
+        this.cluster.setFailedMark(address);
         // (지금은 availableindex.get(0) 에 위치한 component pool 을 마킹해 랜덤 시간동안 connect 반환 안되게 만들어줌.)
+    }
+
+    public void updatePrimary(int address){
+        this.cluster.updatePrimary(address);
     }
 }

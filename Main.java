@@ -14,34 +14,25 @@ public class Main {
                 while (true) {
                     String s = scanner.nextLine();
                     if (!s.isEmpty()) {
-                        if (s.equals("a")){
-                            try {
-                                singletonServer.remove(5);
-                                singletonServer.add(5);
-                            } catch (InterruptedException e) {
-                                System.out.println("Input thread be interrupted");
-                                throw new RuntimeException(e);
-                            }
-                        }
-                        else if (s.equals("g")) {
+                        if (s.equals("g")) {
                             System.out.printf("server total : %d \n", singletonServer.getData());
-                        }
-                        else if (s.equals("f")) {
-                            try {
-                                singletonServer.setFailedMark();
-                            } catch (InterruptedException e) {
-                                System.out.println("Input thread be interrupted");
-                                throw new RuntimeException(e);
-                            }
+                            continue;
                         }
                         String[] spl = s.split(" ");
                         try {
+                            int n = Integer.parseInt(spl[1]);
                             if (spl[0].equals("add")) {
-                                int n = Integer.parseInt(spl[1]);
                                 singletonServer.add(n);
-                            } else if (spl[0].equals("r")) {
-                                int n = Integer.parseInt(spl[1]);
+                            } else if (spl[0].equals("inactive")) {
+                                singletonServer.inactive(n);
+                            } else if (spl[0].equals("remove")) {
                                 singletonServer.remove(n);
+                            } else if (spl[0].equals("wait")) {
+                                Thread.sleep(1000*n);
+                            } else if (spl[0].equals("failmark")) {
+                                singletonServer.setFailedMark(n);
+                            } else if (spl[0].equals("primary")) {
+                                singletonServer.updatePrimary(n);
                             }
                         } catch (NumberFormatException | IndexOutOfBoundsException e) {
                             System.out.println("Wrong Input Error");
