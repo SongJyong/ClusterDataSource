@@ -6,18 +6,18 @@ public class ComponentStatus {
     private int componentId;
     private AtomicBoolean primaryMark = new AtomicBoolean(false);
     private AtomicBoolean failedMark = new AtomicBoolean(false);
-    private AtomicBoolean removedMark = new AtomicBoolean(false);
+    private AtomicBoolean activeMark = new AtomicBoolean(true);
     private int referenceCount = 0;
 
     public void updatePrimaryMark(){ primaryMark.getAndSet(!primaryMark.get()); }
     public void updateFailMark(){ failedMark.getAndSet(!failedMark.get()); }
-    public void updateRemoveMark(){ removedMark.getAndSet(!removedMark.get()); }
+    public void updateActiveMark(){ activeMark.getAndSet(!activeMark.get()); }
 
     public boolean isPrimary(){ return primaryMark.get(); }
     public boolean isFailed(){ return failedMark.get(); }
-    public boolean isRemoved() { return removedMark.get(); }
-    public boolean isPrimaryAvailable() { return (isPrimary() && !isRemoved() && !isFailed()); }
-    public boolean isSubAvailable() { return (!isPrimary() && !isRemoved() && !isFailed()); }
+    public boolean isActive() { return activeMark.get(); }
+    public boolean isPrimaryAvailable() { return (isPrimary() && isActive() && !isFailed()); }
+    public boolean isSubAvailable() { return (!isPrimary() && isActive() && !isFailed()); }
 
     public synchronized void increaseCount(){ referenceCount += 1; }
     public int getCount(){ return referenceCount; }

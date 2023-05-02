@@ -18,6 +18,9 @@ public class SingletonServer {
     public void inactive(int address) {
         this.cluster.inactive(address); // 해당 address에 맞는 compoonent inactive
     }
+    public void active(int address) {
+        this.cluster.active(address);
+    }
     public void remove(int address){
         this.cluster.remove(address);
     }

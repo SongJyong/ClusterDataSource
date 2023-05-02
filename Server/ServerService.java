@@ -93,16 +93,16 @@ public class ServerService {
             public void run() {
                 while (true) {
                     int log = businessLogic.cluster.failBack();
-                    if (log == -1) {
-                        try {
-                            Thread.sleep(5000); // 특정 시간(현재는 5초) 간격으로
-                            // failedList에 있는 component pool 들이 살아있는 지 확인하는 함수(failOver) 호출
-                        } catch (InterruptedException e) {
-                            System.out.println("failback thread interrupted");
-                        }
+                    if (log != -1) {
+                        System.out.printf("connection pool id : %d fix completed \n", log);
                     }
                     else{
-                        System.out.printf("connection pool id : %d fix completed \n", log);
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            System.out.println("restore thread be interrupted");
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
             }

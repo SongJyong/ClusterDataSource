@@ -58,34 +58,29 @@ public class ClusterConnectionPool {
             }
         }
     }
-    protected void inactive(int address){ // component address에 해당하는 컴포넌트 remove
+    protected void inactive(int address){ // component address에 해당하는 컴포넌트 inactive
         Node target = primaryAvailableLinkedList.removeElement(address);
         if (target == null) subAvailableLinkedList.removeElement(address);
         ComponentConnectionPool c = componentList.get(address);
-        if(!statusMap.get(address).isRemoved()) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        while (true) {
-                            Thread.sleep(1000);
-                            if (c.isFull()) {
-                                statusMap.get(address).updateRemoveMark();
-                                break;
-                            }
-                        }
-                    } catch (InterruptedException e) {
-                        System.out.println("removeThread Interrupted");
-                        throw new RuntimeException(e);
-                    }
-                }
-            }).start();
-        }
+        if(statusMap.get(address).isActive()) statusMap.get(address).updateActiveMark();
     }
+
+    protected void active(int address){ // component address에 해당하는 컴포넌트 active
+        if (!statusMap.get(address).isFailed()) {
+            if (statusMap.get(address).isPrimary()) primaryAvailableLinkedList.addFirst(address);
+            else subAvailableLinkedList.addFirst(address);
+        }
+        if(!statusMap.get(address).isActive()) statusMap.get(address).updateActiveMark();
+    }
+
     protected void remove(int address){ // component address에 해당하는 컴포넌트 완전히 제거
         Node target = primaryAvailableLinkedList.removeElement(address);
         if (target == null) subAvailableLinkedList.removeElement(address);
         ComponentConnectionPool c = componentList.get(address);
+        archive.add(statusMap.get(address));
+        statusMap.put(address, null);
+        emptyMinHeap.offer(address);
+        /*
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -106,6 +101,7 @@ public class ClusterConnectionPool {
                 }
             }
         }).start();
+         */
     }
     // 요청과 정책에 맞게 componentAddress를 설정해 그 주소에 있는 component pool 의 connection 을 logical로 감싸진 객체를 가져와 반환
     public LogicalConnection getLogicalConnect(int requestId){
@@ -144,7 +140,7 @@ public class ClusterConnectionPool {
                 continue;
             }
             if(statusMap.get(c).isPrimary()) System.out.print("p*");
-            if(statusMap.get(c).isRemoved()) System.out.print("r*");
+            if(!statusMap.get(c).isActive()) System.out.print("i*");
             if(statusMap.get(c).isFailed()) System.out.print("f*");
             System.out.printf("[%d] Component Id : %d, Count : %d\n", c,statusMap.get(c).getComponentId(), statusMap.get(c).getCount());
             total+= statusMap.get(c).getCount();
@@ -171,16 +167,13 @@ public class ClusterConnectionPool {
     //주기적을 돌아가는 백그라운드 스레드에서 호출하는 메서드 (문제가 있는 component들 주기적으로 getConnect() 요청해보고 되면 failbackqueue로 복귀시킴)
     protected synchronized int failBack() { // 이름 바꾸기
         if (failedQueue.size() > 0){
-            List<Integer> next = new Vector<>();
             for (int i =0; i< failedQueue.size(); i++){ // iterator 로 변경?
                 Integer componentAddress = failedQueue.poll();
                 if (componentAddress == null){
-                    for(int e : next){ failedQueue.offer(e); }
                     return -1; // 이 체크를 위해 Integer 형태로 poll 받음.
                 }
                 ComponentConnectionPool c = componentList.get(componentAddress);
                 if (c.getConnect() != null){
-                    for(int e : next){ failedQueue.offer(e); }
                     statusMap.get(componentAddress).updateFailMark();
                     if (statusMap.get(componentAddress).isPrimary()){
                         primaryAvailableLinkedList.addFirst(componentAddress);
@@ -189,9 +182,8 @@ public class ClusterConnectionPool {
                     subAvailableLinkedList.addFirst(componentAddress);
                     return componentAddress;
                 }
-                else next.add(componentAddress);
+                else failedQueue.offer(componentAddress);
             }
-            for(int e : next){ failedQueue.offer(e); }
         }
         return -1;
     }

@@ -25,6 +25,8 @@ public class Main {
                                 singletonServer.add(n);
                             } else if (spl[0].equals("inactive")) {
                                 singletonServer.inactive(n);
+                            } else if (spl[0].equals("active")) {
+                                singletonServer.active(n);
                             } else if (spl[0].equals("remove")) {
                                 singletonServer.remove(n);
                             } else if (spl[0].equals("wait")) {
