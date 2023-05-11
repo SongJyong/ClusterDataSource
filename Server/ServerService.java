@@ -74,6 +74,7 @@ public class ServerService {
                                         connections.get(cid).receive(selectionKey); // id값 이용해 hashtable 참조해
                                     }
                                 });
+
                             }
                         }
                     } catch (Exception e) {
@@ -88,7 +89,7 @@ public class ServerService {
         };
         selectorThread.start();
 
-        Thread failBackThread = new Thread(){
+        Thread failbackThread = new Thread(){
             @Override
             public void run() {
                 while (true) {
@@ -100,14 +101,14 @@ public class ServerService {
                         try {
                             Thread.sleep(5000);
                         } catch (InterruptedException e) {
-                            System.out.println("restore thread be interrupted");
+                            System.out.println("failback thread be interrupted");
                             throw new RuntimeException(e);
                         }
                     }
                 }
             }
         };
-        failBackThread.start();
+        failbackThread.start();
     }
 
     // 서버 종료 시 호출되는 메소드
@@ -134,9 +135,9 @@ public class ServerService {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel socketChannel = serverSocketChannel.accept();
-            int cId = clientAtomicId.getAndIncrement(); // client 고유 id 부여
+            int cId = clientAtomicId.getAndIncrement(); // client 고유 id 부여, 이것도 사실 AtomicInteger로 동기화할 필요 없을 듯
             Session session = new Session(cId, socketChannel); // 아래 선언된 내부 클래스인 Session 선언 (채널과 1대1 관계)
-            connections.put(cId,session); // 나중에 빠른 탐색을 위한 Hash table 만들기 위해 값 넣어줌.
+            connections.put(cId,session); // 나중에 빠른 탐색을 위한 Hash table 만들기 위해 값 넣어줌. (HashMap 사용해도 될 듯함)
             String message = "[연결 수락: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
             System.out.println(message);
         } catch (Exception e) {
@@ -152,7 +153,7 @@ public class ServerService {
         SocketChannel socketChannel;
         Session(int id, SocketChannel socketChannel) throws IOException {
             this.socketChannel = socketChannel;
-            this.clientId = Integer.valueOf(id); // 초기화 시 Integer 인스턴스 하나 설정 (고유 int 값)
+            this.clientId = id; // 초기화 시 Integer 인스턴스 하나 설정 (고유 int 값)
             socketChannel.configureBlocking(false);
             SelectionKey selectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             selectionKey.attach(this.clientId); // 셀렉션키에 id 첨부
@@ -161,7 +162,7 @@ public class ServerService {
         void receive(SelectionKey selectionKey) {
             try {
                 //ByteBuffer byteBuffer = bufferPool.getBuffer(); // 버퍼 풀에서 미리 생성해둔 버퍼 가져옴.
-                ByteBuffer byteBuffer = ByteBuffer.allocate(150);
+                ByteBuffer byteBuffer = ByteBuffer.allocate(100);
                 int byteCount = socketChannel.read(byteBuffer);
                 // 클라이언트가 정상적으로 SocketChannel의 close()를 호출했을 경우
                 // read() 메소드는 -1을 리턴하고 IOException을 강제로 발생
@@ -175,9 +176,9 @@ public class ServerService {
                     selectionKey.interestOps(SelectionKey.OP_READ); //read로 request하나 확인되면 바로 다시 read 받을 준비
                     selector.wakeup(); // blocking 되어 있는 select() 함수 깨워줌. (사실상 non-block select() 재호출 느낌)
                     businessLogic.addRequest(byteBuffer, clientId); //request data 저장
-                    businessLogic.work(); //work thread 에서 따로 저장된 request 응답 처리
+                    businessLogic.work(); //new Thread로 변경 필요, work thread 에서 따로 저장된 request 응답 처리
                     String message = "[요청 처리: " + socketChannel.getRemoteAddress() + ": " + Thread.currentThread().getName() + "]";
-                    //System.out.println(message);
+                    System.out.println(message);
                     // 정상적으로 데이터를 받았을 경우 "[요청처리: 클라이언트 IP: 작업 스레드 이름]"으로 구성된 문자열 출력
                     byteBuffer.clear();
                     //bufferPool.releaseBuffer(byteBuffer); // 사용한 버퍼 다시 풀로 되돌려줌

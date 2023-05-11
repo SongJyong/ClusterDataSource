@@ -2,39 +2,36 @@ package Server;
 
 import Protocol.Request;
 import Protocol.Utilities;
-import Utilities.Pair;
+import Utilities.RequestPairData;
 
 import java.nio.ByteBuffer;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Queue;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class BusinessLogic {
-    public List<Pair> requestData = new Vector<>();
+    public HashMap<Integer, RequestPairData> requestData = new HashMap<>(); // hash table 쓸 이유 없음.
     // 요청 들어온 [클라이언트 id(Integer), 요청 데이터 (Request)] pair로 저장
     public Queue<Integer> workQueue = new ConcurrentLinkedQueue<>(); // 아직 처리되지 않은 요청 index를 모아둔 큐
-    public AtomicInteger requestId = new AtomicInteger(); // 요청 구분하기 위해 만든 id (위에 큐에 사용)
+    public int requestId = 0; // 요청 구분하기 위해 만든 id (위에 큐에 사용)
     ClusterConnectionPool cluster = ClusterConnectionPool.getInstance();
 
-    public synchronized void addRequest(ByteBuffer byteBuffer, Integer clientId){
+    public synchronized void addRequest(ByteBuffer byteBuffer, int clientId){
         byteBuffer.flip();
         Request request = (Request) Utilities.convertBytesToObject(byteBuffer); // 요청 데이터인 ByteBuffer 로부터 request 객체 역직렬화
-        request.setRequestId(requestId.getAndIncrement());
-        requestData.add(new Pair(request,clientId)); // 모든 요청 데이터 client id 와 짝 맺어서 저장해둠.
-        workQueue.offer(request.getRequestId()); // 사실상 작업 대기 큐에 추가 (index로 요청 구분)
+        //이거 역직렬화 여기서 하지말고, 아래 work로 옮겨주고, addRequest함수 synchronized 빼는 것으로 추후 변경 필요.
+        requestData.put(this.requestId, new RequestPairData(request,clientId,this.requestId)); // 모든 요청 데이터 client id 와 짝 맺어서 저장해둠.
+        workQueue.offer(this.requestId); // 사실상 작업 대기 큐에 추가 (requestId로 요청 구분)
+        this.requestId += 1;
     }
 
     public void work(){
         if (!workQueue.isEmpty()){
-            int i = workQueue.poll();
-            Request request = requestData.get(i).getRequestData();
-            for (int j = 0; j < request.getNumberOfConnection(); j++) {
+            int requestId = workQueue.poll();
+            Request request = requestData.get(requestId).getRequestData();
+            for (int j = 0; j < request.getNeedNumberOfConnection(); j++) {
                 // request로 부터 요청 커넥션 갯수(number of connection) 받아 cluster에 connection pool 연결 요청
-                LogicalConnection logicalConnection = cluster.getLogicalConnect(request.getRequestId());
+                LogicalConnection logicalConnection = cluster.getLogicalConnect(requestId);
                 // requestId 를 이용하여 정책에 맞는 logical connection 받음
                 logicalConnection.close();
                 // 잘 받았으면 바로 닫아줌. (컴포넌트 풀에 커넥션 돌려줌)

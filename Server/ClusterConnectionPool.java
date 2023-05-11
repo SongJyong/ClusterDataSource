@@ -21,9 +21,9 @@ public class ClusterConnectionPool {
     static public Queue<Integer> emptyMinHeap = new PriorityBlockingQueue<>();
     //관리자가 실제 component pool 을 지웠을 때, componentList 에 생기는 비어 있는 address를 최소 값부터 반환되게 모아둠. (새로 생성시 채우는 느낌)
     static public Map<Integer, ComponentStatus> statusMap = new HashMap<>();
-    private List<ComponentStatus> archive = new Vector<>();
-    private AtomicInteger componentId = new AtomicInteger(); // 컴포넌트 생성시 고유 id 부여
-    private List<ComponentConnectionPool> componentList = new Vector<ComponentConnectionPool>(); // 실제 컴포넌트 보유 리스트
+    private List<ComponentStatus> archive = new ArrayList<>(); // 벡터일 이유 없음
+    private AtomicInteger componentId = new AtomicInteger(); // 컴포넌트 생성시 고유 id 부여 (atomic일 필요 없음? add 동시 여러번 호출 될 때)
+    private List<ComponentConnectionPool> componentList = new ArrayList<>(); // 실제 컴포넌트 보유 리스트
     String dbUrl = "jdbc:h2:~/test";
     SchedulerFactory schedulerFactory = new SchedulerFactory();
 
@@ -39,21 +39,22 @@ public class ClusterConnectionPool {
     } //이거 싱글톤일 필요 없지만 지금 클러스터 하나 가지고 여러 객체 구조 다루느라 편의성 위해
     // 일단 싱글톤으로 사용하고 있음.
 
-    protected void start(int n) throws InterruptedException {
+    //일단 synchronized , 추후 id, ind(size 할당) 동기화 필요
+    protected synchronized void start(int n) throws InterruptedException {
         for (int i=0; i<n; i++) {
-            int id = componentId.getAndIncrement();
+            int id = this.componentId.getAndIncrement();
             ComponentConnectionPool c = new ComponentConnectionPool(id);
             c.makeComponent(10, dbUrl); // 임의로 컴포넌트 풀마다 physical connection 10개 초기화
             if (emptyMinHeap.isEmpty()) {
-                componentList.add(c);
-                int ind = componentList.size()-1;
+                int ind = componentList.size();
                 statusMap.put(ind,new ComponentStatus(id));
+                componentList.add(c);
                 subAvailableLinkedList.addFirst(ind);
             }
             else{
                 int ind = emptyMinHeap.poll();
-                componentList.set(ind,c);
                 statusMap.put(ind,new ComponentStatus(id));
+                componentList.set(ind,c);
                 subAvailableLinkedList.addFirst(ind);
             }
         }
@@ -61,7 +62,6 @@ public class ClusterConnectionPool {
     protected void inactive(int address){ // component address에 해당하는 컴포넌트 inactive
         Node target = primaryAvailableLinkedList.removeElement(address);
         if (target == null) subAvailableLinkedList.removeElement(address);
-        ComponentConnectionPool c = componentList.get(address);
         if(statusMap.get(address).isActive()) statusMap.get(address).updateActiveMark();
     }
 
@@ -76,11 +76,11 @@ public class ClusterConnectionPool {
     protected void remove(int address){ // component address에 해당하는 컴포넌트 완전히 제거
         Node target = primaryAvailableLinkedList.removeElement(address);
         if (target == null) subAvailableLinkedList.removeElement(address);
-        ComponentConnectionPool c = componentList.get(address);
         archive.add(statusMap.get(address));
         statusMap.put(address, null);
         emptyMinHeap.offer(address);
         /*
+        ComponentConnectionPool c = componentList.get(address);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -106,12 +106,10 @@ public class ClusterConnectionPool {
     // 요청과 정책에 맞게 componentAddress를 설정해 그 주소에 있는 component pool 의 connection 을 logical로 감싸진 객체를 가져와 반환
     public LogicalConnection getLogicalConnect(int requestId){
         int componentAddress = schedulerFactory.getScheduleAddress(requestId);
-        if (componentAddress < 0){ return getLogicalConnect(requestId); }
         ComponentConnectionPool c = componentList.get(componentAddress); // 배정 받은 인덱스로 주소 참조해서 component 가져옴
         LogicalConnection logicalConnection = c.getConnect(); // pool 에서 connection 가져오기 시도 (take)
         if (logicalConnection == null){
             // connection 실패 시, 고장으로 판단 failedQueue로 옮김.
-            //availableLinkedList.customRemove(Integer.valueOf(componentAddress));
             synchronized (failedQueue){
                 if(!failedQueue.contains(componentAddress) && !statusMap.get(componentAddress).isFailed()) {
                     if (primaryAvailableLinkedList.removeElement(componentAddress) == null)
@@ -165,6 +163,7 @@ public class ClusterConnectionPool {
     protected void setFailedMark(int address) throws InterruptedException { componentList.get(address).setFailedMark(); }
 
     //주기적을 돌아가는 백그라운드 스레드에서 호출하는 메서드 (문제가 있는 component들 주기적으로 getConnect() 요청해보고 되면 failbackqueue로 복귀시킴)
+    //synchronized 필요 없음
     protected synchronized int failBack() { // 이름 바꾸기
         if (failedQueue.size() > 0){
             for (int i =0; i< failedQueue.size(); i++){ // iterator 로 변경?

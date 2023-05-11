@@ -7,6 +7,15 @@ public class Main {
         singletonServer.startServer();
         singletonServer.start(10);
 
+        System.out.println("'add n' -- add new n component pools");
+        System.out.println("'inactive n' -- inactivate the component (that address is n)");
+        System.out.println("'activate n' -- activate the component (that address is n)");
+        System.out.println("'remove n' -- remove the component (that address is n)");
+        System.out.println("'primary n' -- priority ON/Off (for component that address is n)");
+        System.out.println("'failmark n' -- make the component(that address is n) work incorrect during random times(0~10)");
+        System.out.println("'get' -- get response count with component pool status");
+        System.out.println("'wait n' -- cli waits n seconds");
+
         Scanner scanner = new Scanner(System.in);
         Thread t = new Thread() {
             @Override
@@ -14,7 +23,7 @@ public class Main {
                 while (true) {
                     String s = scanner.nextLine();
                     if (!s.isEmpty()) {
-                        if (s.equals("g")) {
+                        if (s.equals("get")) {
                             System.out.printf("server total : %d \n", singletonServer.getData());
                             continue;
                         }
